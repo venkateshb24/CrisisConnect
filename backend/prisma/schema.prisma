@@ -1,0 +1,73 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  hospital
+  supplier
+  admin
+}
+
+enum RequestStatus {
+  pending
+  allocated
+  delivered
+  cancelled
+}
+
+model User {
+  id           Int                @id @default(autoincrement())
+  name         String
+  email        String             @unique
+  passwordHash String             @map("password_hash")
+  role         Role
+  locationLat  Decimal            @db.Decimal(10, 8) @map("location_lat")
+  locationLng  Decimal            @db.Decimal(11, 8) @map("location_lng")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  inventories  Inventory[]
+  requests     EmergencyRequest[]
+
+  @@map("users")
+}
+
+model Resource {
+  id          Int                @id @default(autoincrement())
+  name        String             @unique
+  category    String
+  inventories Inventory[]
+  requests    EmergencyRequest[]
+
+  @@map("resources")
+}
+
+model Inventory {
+  id                Int      @id @default(autoincrement())
+  userId            Int      @map("user_id")
+  resourceId        Int      @map("resource_id")
+  quantityAvailable Int      @default(0) @map("quantity_available")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+  
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resource          Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@map("inventories")
+}
+
+model EmergencyRequest {
+  id             Int           @id @default(autoincrement())
+  hospitalId     Int           @map("hospital_id")
+  resourceId     Int           @map("resource_id")
+  quantityNeeded Int           @map("quantity_needed")
+  status         RequestStatus @default(pending)
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  hospital       User          @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  resource       Resource      @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@map("emergency_requests")
+}

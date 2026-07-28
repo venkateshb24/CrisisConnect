@@ -3,6 +3,8 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { PrismaClient }  from "@prisma/client";
 import authRouter from './routes/authRoutes.js';
+import inventoryRoutes from './routes/inventoryRoutes.js';
+import resourceRoutes from './routes/resourceRoutes.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -16,6 +18,8 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/inventory", inventoryRoutes);
+app.use('/api/resources', resourceRoutes);
 
 const PORT = process.env.PORT || 5000;
 

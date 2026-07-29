@@ -5,6 +5,7 @@ import { PrismaClient }  from "@prisma/client";
 import authRouter from './routes/authRoutes.js';
 import inventoryRoutes from './routes/inventoryRoutes.js';
 import resourceRoutes from './routes/resourceRoutes.js';
+import emergencyRequestRoutes from './routes/emergencyRequestRoutes.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -20,6 +21,7 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/inventory", inventoryRoutes);
 app.use('/api/resources', resourceRoutes);
+app.use('/api/emergency-requests', emergencyRequestRoutes);
 
 const PORT = process.env.PORT || 5000;
 

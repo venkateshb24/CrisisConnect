@@ -85,7 +85,7 @@ export const getEmergencyRequests = async (req, res) => {
 export const updateRequestStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, inventoryId } = req.body;
         
         const validStatuses = ['pending', 'allocated', 'delivered', 'cancelled'];
         if(!status || !validStatuses.includes(status)) {
@@ -102,6 +102,45 @@ export const updateRequestStatus = async (req, res) => {
 
         if(status === 'cancelled' && existingRequest.hospitalId !== req.user.userId && req.user.role !== 'admin') {
             return res.status(403).json({ error: "Forbidden. Only the requesting hospital can cancel this request."});
+        }
+
+        if(status === 'allocated') {
+            if(!inventoryId) {
+                return res.status(400).json({ error: "InventoryId is required to allocate stock from an inventory"});
+            }
+
+            const result = await prisma.$transaction(async (tx) => {
+                const inventory = await tx.inventory.findUnique({
+                    where: {id: Number(inventoryId)}
+                });
+
+                if(!inventory) {
+                    throw new Error("Target inventory record not found.");
+                }
+
+                if(inventory.quantityAvailable < existingRequest.quantityNeeded) {
+                    throw new Error(`Insufficient stock. Needed: ${existingRequest.quantityNeeded}, Available: ${inventory.quantityAvailable}`);
+                }
+
+                const updatedInventory = await tx.inventory.update({
+                    where: {id: Number(inventoryId)},
+                    data: {quantityAvailable: inventory.quantityAvailable - existingRequest.quantityNeeded}
+                });
+
+                const updateRequest = await tx.emergencyRequest.update({
+                    where: {id: Number(id)},
+                    data: {status: 'allocated'},
+                    include: {resource: true, hospital: true}
+                });
+
+                return {updateRequest, remainingStock: updatedInventory.quantityAvailable} 
+            });
+
+            return res.status(200).json({
+                message: "Request successfully allocated and inventory stock updated.",
+                request: result.updatedRequest,
+                remainingStock: result.remainingStock
+            });
         }
 
         const updatedRequest = await prisma.emergencyRequest.update({

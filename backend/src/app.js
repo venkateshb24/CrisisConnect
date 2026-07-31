@@ -7,6 +7,7 @@ import inventoryRoutes from './routes/inventoryRoutes.js';
 import resourceRoutes from './routes/resourceRoutes.js';
 import emergencyRequestRoutes from './routes/emergencyRequestRoutes.js';
 import geoRoutes from './routes/geoRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -24,10 +25,9 @@ app.use("/api/inventory", inventoryRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/emergency-requests', emergencyRequestRoutes);
 app.use('/api/geo', geoRoutes);
+app.use('/api/admin', adminRoutes);
 
 const PORT = process.env.PORT || 5000;
-
-console.log(process.env.DATABASE_URL);
 
 app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);

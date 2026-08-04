@@ -1,4 +1,6 @@
 import { PrismaClient } from "@prisma/client";
+import { emitEmergencyAlert } from "../sockets/socketHandler.js";
+
 const prisma = new PrismaClient();
 
 export const createEmergencyRequest = async (req, res) => {
@@ -6,7 +8,7 @@ export const createEmergencyRequest = async (req, res) => {
         const { resourceId, quantityNeeded} = req.body;
 
         if(!resourceId || !quantityNeeded || quantityNeeded < 0) {
-            res.status(400).json({ error: "ResourceId and a positive quantityNeeded are required."})
+            return res.status(400).json({ error: "ResourceId and a positive quantityNeeded are required."})
         }
 
         const resourceExists = await prisma.resource.findUnique({
@@ -37,6 +39,8 @@ export const createEmergencyRequest = async (req, res) => {
                 }
             }
         });
+
+        emitEmergencyAlert(newRequest);
 
         return res.status(201).json({
             message: "Emergency request created successfully",
@@ -127,13 +131,13 @@ export const updateRequestStatus = async (req, res) => {
                     data: {quantityAvailable: inventory.quantityAvailable - existingRequest.quantityNeeded}
                 });
 
-                const updateRequest = await tx.emergencyRequest.update({
+                const updatedRequest = await tx.emergencyRequest.update({
                     where: {id: Number(id)},
                     data: {status: 'allocated'},
                     include: {resource: true, hospital: true}
                 });
 
-                return {updateRequest, remainingStock: updatedInventory.quantityAvailable} 
+                return {updatedRequest, remainingStock: updatedInventory.quantityAvailable} 
             });
 
             return res.status(200).json({

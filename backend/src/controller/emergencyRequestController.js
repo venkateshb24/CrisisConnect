@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
-import { emitEmergencyAlert } from "../sockets/socketHandler.js";
+import { emitEmergencyCreatedNearby, emitRequestAllocated, emitRequestCancelled, emitRequestDelivered } from "../sockets/emergencyEvents.js";
 
 const prisma = new PrismaClient();
+const DEFAULT_RADIUS_KM = 50;
 
 export const createEmergencyRequest = async (req, res) => {
     try {
@@ -40,7 +41,7 @@ export const createEmergencyRequest = async (req, res) => {
             }
         });
 
-        emitEmergencyAlert(newRequest);
+        emitEmergencyCreatedNearby(newRequest, DEFAULT_RADIUS_KM);
 
         return res.status(201).json({
             message: "Emergency request created successfully",
@@ -101,7 +102,7 @@ export const updateRequestStatus = async (req, res) => {
         });
 
         if(!existingRequest) {
-            return res.status(400).json({error: "Emergency request not found."});
+            return res.status(404).json({error: "Emergency request not found."});
         }
 
         if(status === 'cancelled' && existingRequest.hospitalId !== req.user.userId && req.user.role !== 'admin') {
@@ -140,6 +141,8 @@ export const updateRequestStatus = async (req, res) => {
                 return {updatedRequest, remainingStock: updatedInventory.quantityAvailable} 
             });
 
+            emitRequestAllocated(result.updatedRequest, DEFAULT_RADIUS_KM);
+
             return res.status(200).json({
                 message: "Request successfully allocated and inventory stock updated.",
                 request: result.updatedRequest,
@@ -152,11 +155,16 @@ export const updateRequestStatus = async (req, res) => {
             data: { status },
             include: {
                 resource: true,
-                hospital: {
-                    select: { id: true, name: true, email: true}
-                }
+                hospital: true
             }
         });
+
+        if(status === 'cancelled') {
+            emitRequestCancelled(updatedRequest, DEFAULT_RADIUS_KM);
+        }
+        else if(status === 'delivered') {
+            emitRequestDelivered(updatedRequest);
+        }
 
         return res.status(200).json({
             message: `Emergency request status updated to ${status}`,

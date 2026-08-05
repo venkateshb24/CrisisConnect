@@ -3,7 +3,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { PrismaClient }  from "@prisma/client";
 import http from 'http';
-import { initSocket } from './sockets/socketHandler.js';
+import { initSocket } from './sockets/socketServer.js';
 
 
 import authRouter from './routes/authRoutes.js';
@@ -26,6 +26,14 @@ app.use(cookieParser());
 app.get("/health", (req, res) => {
     res.json({status : "Server is running!"});
 });
+
+if (!process.env.JWT_ACCESS_SECRET) {
+    throw new Error("JWT_ACCESS_SECRET is missing in .env");
+}
+
+if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error("JWT_REFRESH_SECRET is missing in .env");
+}
 
 app.use("/api/auth", authRouter);
 app.use("/api/inventory", inventoryRoutes);

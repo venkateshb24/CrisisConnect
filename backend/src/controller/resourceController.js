@@ -1,5 +1,8 @@
 import { PrismaClient } from "@prisma/client";
+import { getCache, setCache, invalidateCache } from "../utils/cacheUtils.js";
+
 const prisma = new PrismaClient();
+const RESOURCE_CACHE_KEY = 'catlog:resources:all';
 
 export const createResource = async (req, res) => {
     try {
@@ -11,6 +14,8 @@ export const createResource = async (req, res) => {
         const resource = await prisma.resource.create({
             data: {name, category}
         });
+
+        await invalidateCache(RESOURCE_CACHE_KEY);
 
         return res.status(201).json({ message: "Resource created", resource});
     }
@@ -26,10 +31,27 @@ export const createResource = async (req, res) => {
 
 export const getResources = async (req, res) => {
     try {
+        const cachedResources = await getCache(RESOURCE_CACHE_KEY);
+        if(cachedResources) {
+            return res.status(200).json({
+                source: 'cache',
+                count: cachedResources.length,
+                resources: cachedResources
+            });
+        }
+
         const resources = await prisma.resource.findMany();
-        return res.status(200).json({ resources });
+
+        await setCache(RESOURCE_CACHE_KEY, resources, 3600);
+
+        return res.status(200).json({
+            source: 'database',
+            count: resources.length,
+            resources
+        });
     }
     catch(error) {
+        console.error("Get Resources Error:", error);
         return res.status(500).json({ error: "Internal server error"});
     }
 }

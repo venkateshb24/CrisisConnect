@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { calculateDistanceKm  } from "../utils/geoUtils.js";
+import { getCache, setCache } from "../utils/cacheUtils.js";
 
 const prisma = new PrismaClient();
 
@@ -22,6 +23,20 @@ export const searchNearbyInventory = async (req, res) => {
 
         const userLat = Number(currentUser.locationLat);
         const userLng = Number(currentUser.locationLng);
+
+        const roundedLat = userLat.toFixed(2);
+        const roundedLng = userLng.toFixed(2);
+
+        const cacheKey = `geo:nearby:res_${resourceId}:rad_${maxRadiusKm}:lat_${roundedLat}:lng_${roundedLng}`;
+
+        const cachedResults = await getCache(cacheKey);
+        if(cachedResults) {
+            return res.status(200).json({
+                source: 'cache',
+                count: cachedResults.length,
+                nearbyInventory: cachedResults
+            });
+        }
 
         const inventories = await prisma.inventory.findMany({
             where: {
@@ -58,7 +73,10 @@ export const searchNearbyInventory = async (req, res) => {
             .filter((item) => item.distanceKm <= Number(maxRadiusKm))
             .sort((a, b) => a.distanceKm - b.distanceKm);
 
+        await setCache(cacheKey, nearbyResults, 60);
+
         return res.status(200).json({
+            source: 'database',
             count: nearbyResults.length,
             userLocation: { lat: userLat, lng: userLng },
             searchRadiusKm: Number(maxRadiusKm),

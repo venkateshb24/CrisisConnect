@@ -12,9 +12,9 @@ import resourceRoutes from './routes/resourceRoutes.js';
 import emergencyRequestRoutes from './routes/emergencyRequestRoutes.js';
 import geoRoutes from './routes/geoRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import { globalLimiter } from './middleware/rateLimiter.js';
 
 const app = express();
-const prisma = new PrismaClient();
 const server = http.createServer(app);
 
 initSocket(server);
@@ -34,6 +34,8 @@ if (!process.env.JWT_ACCESS_SECRET) {
 if (!process.env.JWT_REFRESH_SECRET) {
     throw new Error("JWT_REFRESH_SECRET is missing in .env");
 }
+
+app.use(globalLimiter);
 
 app.use("/api/auth", authRouter);
 app.use("/api/inventory", inventoryRoutes);

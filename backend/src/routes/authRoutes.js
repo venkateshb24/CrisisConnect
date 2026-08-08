@@ -1,13 +1,14 @@
 import express from "express";
 import { registerUser, loginUser, refreshToken, logoutUser } from "../controller/authController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/authMiddleware.js";
+import { authLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
-router.post('/register', registerUser);
-router.post('/login', loginUser);
-router.post('/refresh', refreshToken);
-router.post('/logout', logoutUser);
+router.post('/register', authLimiter, registerUser);
+router.post('/login', authLimiter, loginUser);
+router.post('/refresh', authLimiter, refreshToken);
+router.post('/logout', authLimiter, logoutUser);
 
 router.get('/me', authenticateToken, (req, res) => {
     return res.status(200).json({
